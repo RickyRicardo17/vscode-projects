@@ -69,8 +69,8 @@ export class TeamworkProjects{
         if(this.panel){
             this.panel.reveal(column);
             this.panel.title = taskItem.label;
-            this.panel.webview.html = this.WebViews.GetWebViewContentLoader();
-            this.panel.webview.html = await this.GetWebViewContent(taskItem.id);
+            this.panel.webview.html = this.WebViews.GetWebViewContentLoader(this.panel.webview);
+            this.panel.webview.html = await this.GetWebViewContent(taskItem.id, this.panel.webview);
         }else{
             this.panel = vscode.window.createWebviewPanel("twp.TaskPreview","Task: " + taskItem.label,vscode.ViewColumn.Beside,{
                 enableScripts: true,
@@ -82,23 +82,23 @@ export class TeamworkProjects{
                 light: vscode.Uri.file(path.join(this._extensionPath, 'resources', 'projects-white.svg')),
                 dark: vscode.Uri.file(path.join(this._extensionPath, 'resources', 'projects-white.svg'))
               };
-            this.panel.webview.html = this.WebViews.GetWebViewContentLoader();
-            this.panel.webview.html = await this.GetWebViewContent(taskItem.id);
+            this.panel.webview.html = this.WebViews.GetWebViewContentLoader(this.panel.webview);
+            this.panel.webview.html = await this.GetWebViewContent(taskItem.id, this.panel.webview);
 
             this.panel.webview.onDidReceiveMessage(
                 async message => {
                     var data = JSON.parse(message.text);
                     switch (data.type) {
                         case 'comment':
-                            this.panel.webview.html = this.WebViews.GetWebViewContentLoader();
+                            this.panel.webview.html = this.WebViews.GetWebViewContentLoader(this.panel.webview);
                             this.CreateComment(data.taskId, data.comment);
                             return;
                         case 'complete':
-                            this.panel.webview.html = this.WebViews.GetWebViewContentLoader();
+                            this.panel.webview.html = this.WebViews.GetWebViewContentLoader(this.panel.webview);
                             this.CompleteTask(data.taskId);
                             return;
                         case 'time':
-                            this.panel.webview.html = this.WebViews.GetWebViewContentLoader();
+                            this.panel.webview.html = this.WebViews.GetWebViewContentLoader(this.panel.webview);
                             let complete = JSON.parse(data.complete);
                             let billable = JSON.parse(data.billable);
 
@@ -106,7 +106,7 @@ export class TeamworkProjects{
                             var minutes = Number(data.minutes);
                             if( minutes > 59){
                                 vscode.window.showErrorMessage("You can not log more than 59 minutes, please use hours and minutes");
-                                this.panel.webview.html = await this.GetWebViewContent(taskItem.id);
+                                this.panel.webview.html = await this.GetWebViewContent(data.taskId, this.panel.webview);
                                 return;
                             }
 
@@ -125,12 +125,12 @@ export class TeamworkProjects{
 
     public async CreateComment(taskItem: number, content: string){
          await this.API.AddComment(taskItem, content);
-         this.panel.webview.html = await this.GetWebViewContent(taskItem, true);
+         this.panel.webview.html = await this.GetWebViewContent(taskItem, this.panel.webview, true);
     }
 
     public async CreateTimeEntry(taskItem: number, hours: number, minutes: number, description: string, complete: boolean, billable: boolean){
         await this.API.AddTimeEntry(taskItem, hours, minutes, description, complete, billable);
-        this.panel.webview.html = await this.GetWebViewContent(taskItem, true);
+        this.panel.webview.html = await this.GetWebViewContent(taskItem, this.panel.webview, true);
    }
 
     public async CompleteTask(taskItem: number){
@@ -139,7 +139,7 @@ export class TeamworkProjects{
         if(isNullOrUndefined(this.panel) || isNullOrUndefined(this.panel.webview)){
 
         }else{
-            this.panel.webview.html = await this.GetWebViewContent(taskItem, true);
+            this.panel.webview.html = await this.GetWebViewContent(taskItem, this.panel.webview, true);
         }
 
 
@@ -163,13 +163,13 @@ export class TeamworkProjects{
     public async AssignTask(node: TaskItemNode){
     }
 
-    public async GetWebViewContent(taskItem: number, force: boolean = false){
+    public async GetWebViewContent(taskItem: number, webview: vscode.Webview, force: boolean = false){
         var config = vscode.workspace.getConfiguration('twp');
         var showTeamworkPanel = config.get("ShowTeamworkPanel");
         if(showTeamworkPanel){
-            return await this.WebViews.GetWebViewContentTeamwork(taskItem,force);
+            return await this.WebViews.GetWebViewContentTeamwork(taskItem, webview, force);
         }else{
-            return await this.WebViews.GetWebViewContentAdaptiveCard(taskItem,force);
+            return await this.WebViews.GetWebViewContentAdaptiveCard(taskItem, webview, force);
         }
     }
 

@@ -6,6 +6,16 @@ import { TeamworkProjectsApi } from './teamworkProjectsApi';
 import TaskCard = require('./cards/taskCard.json');
 import TaskCardWithTime = require('./cards/taskCardWithTime.json');
 
+/** asWebviewUri / cspSource exist on all supported VS Code runtimes; bundled typings can lag (e.g. older @types). */
+type WebviewResourceApi = vscode.Webview & {
+    asWebviewUri(localResource: vscode.Uri): vscode.Uri;
+    readonly cspSource: string;
+};
+
+function webviewResources(webview: vscode.Webview): WebviewResourceApi {
+    return webview as WebviewResourceApi;
+}
+
 export class WebViews{
     private readonly _extensionPath: string;    
     public readonly _context: vscode.ExtensionContext;
@@ -17,16 +27,14 @@ export class WebViews{
         this.API = api;
     }
 
-    public GetWebViewContentLoader(){
-           
-        // jquery
-        const jqueryPath = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'jquery.min.js'));
-        const jqueryUri = jqueryPath.with({ scheme: 'vscode-resource' });
+    public GetWebViewContentLoader(webview: vscode.Webview){
+        const wv = webviewResources(webview);
+
+        const jqueryUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'jquery.min.js')));
 
         const nonce = this.getNonce();
 
-        const ACstyle = vscode.Uri.file(	path.join(this._extensionPath, 'media/css', 'loader.css'));
-        const ACStyleUri = ACstyle.with({ scheme: 'vscode-resource' });
+        const ACStyleUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/css', 'loader.css')));
 
         return `<!DOCTYPE html>
                 <html lang="en">
@@ -34,7 +42,7 @@ export class WebViews{
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Cat Coding</title>
-                    <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}';style-src vscode-resource: 'unsafe-inline' http: https: data:;">
+                    <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}' ${wv.cspSource}; style-src ${wv.cspSource} 'unsafe-inline' http: https: data:;">
                     <script nonce="${nonce}" src="${jqueryUri}"></script>
                     <link rel="stylesheet" href="${ACStyleUri}"  nonce="${nonce}"  type="text/css" />
                 </head>
@@ -66,19 +74,16 @@ export class WebViews{
 
     }
 
-    public GetWebViewLogin(){
-           
-        // jquery
-        const jqueryPath = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'jquery.min.js'));
-        const jqueryUri = jqueryPath.with({ scheme: 'vscode-resource' });
+    public GetWebViewLogin(webview: vscode.Webview){
+        const wv = webviewResources(webview);
 
-        const scriptPath = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'mainTeamwork.js'));
-        const scriptUri = scriptPath.with({ scheme: 'vscode-resource' });
+        const jqueryUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'jquery.min.js')));
+
+        const scriptUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'mainTeamwork.js')));
 
         const nonce = this.getNonce();
 
-        const ACstyle = vscode.Uri.file(	path.join(this._extensionPath, 'media/css', 'loader.css'));
-        const ACStyleUri = ACstyle.with({ scheme: 'vscode-resource' });
+        const ACStyleUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/css', 'loader.css')));
 
         return `<!DOCTYPE html>
                 <html lang="en">
@@ -86,7 +91,7 @@ export class WebViews{
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>Cat Coding</title>
-                    <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}';style-src vscode-resource: 'unsafe-inline' http: https: data:;">
+                    <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}' ${wv.cspSource}; style-src ${wv.cspSource} 'unsafe-inline' http: https: data:;">
                     <script nonce="${nonce}" src="${jqueryUri}"></script>
                     <script nonce="${nonce}" src="${scriptUri}"></script>
                     <link rel="stylesheet" href="${ACStyleUri}"  nonce="${nonce}"  type="text/css" />
@@ -99,9 +104,10 @@ export class WebViews{
 
     }
 
-    public async GetWebViewContentAdaptiveCard(taskItem: number, force: boolean = false)  {
+    public async GetWebViewContentAdaptiveCard(taskItem: number, webview: vscode.Webview, force: boolean = false)  {
         var todo = await this.API.getTodoItem(this._context, taskItem,force);
         if(todo){
+            const wv = webviewResources(webview);
         
             var config = vscode.workspace.getConfiguration('twp');
             var timeTracking = config.get("enabletimeTracking");
@@ -113,45 +119,27 @@ export class WebViews{
              context.$root = todo;
              let expandedTemplatePayload = template.expand(context);
 
-            // Local path to main script run in the webview
-            const scriptPathOnDisk = vscode.Uri.file(
-                path.join(this._extensionPath, 'media/js', 'mainAdaptive.js')
-            );
-            // And the uri we use to load this script in the webview
-            const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+            const scriptUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'mainAdaptive.js')));
             
-            // jquery
-            const jqueryPath = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'jquery.min.js'));
-            const jqueryUri = jqueryPath.with({ scheme: 'vscode-resource' });
+            const jqueryUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'jquery.min.js')));
 
+            const FabricUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'fabric.min.js')));
 
-            // AdaptiveCards
-            let url = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'fabric.min.js'));
-            const FabricUri = url.with({ scheme: 'vscode-resource' });
+            const ACUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'adaptivecards.min.js')));
 
-             url = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'adaptivecards.min.js'));
-            const ACUri = url.with({ scheme: 'vscode-resource' });
+            const ACUFabricUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'adaptivecards-fabric.min.js')));
 
-            url = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'adaptivecards-fabric.min.js'));
-            const ACUFabricUri = url.with({ scheme: 'vscode-resource' });
+            const ReactUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'react.min.js')));
 
-            url = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'react.min.js'));
-            const ReactUri = url.with({ scheme: 'vscode-resource' });
+            const ReactDomUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'react-dom.min.js')));
 
-            url = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'react-dom.min.js'));
-            const ReactDomUri = url.with({ scheme: 'vscode-resource' });
+            const MarkdownUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'markdown-it.min.js')));
 
-            url = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'markdown-it.min.js'));
-            const MarkdownUri = url.with({ scheme: 'vscode-resource' });
+            const mainstyleUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/css', 'msteamsstyle.css')));
 
-            url = vscode.Uri.file(	path.join(this._extensionPath, 'media/css', 'msteamsstyle.css'));
-            const mainstyleUri = url.with({ scheme: 'vscode-resource' });
+            const FabricStyleUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/css', 'fabric.components.min.css')));
 
-            url = vscode.Uri.file(	path.join(this._extensionPath, 'media/css', 'fabric.components.min.css'));
-            const FabricStyleUri = url.with({ scheme: 'vscode-resource' });
-
-            const ACstyle = vscode.Uri.file(	path.join(this._extensionPath, 'media/css', 'editormain.css'));
-            const ACStyleUri = ACstyle.with({ scheme: 'vscode-resource' });
+            const ACStyleUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/css', 'editormain.css')));
 
             
             const nonce = this.getNonce();
@@ -162,7 +150,7 @@ export class WebViews{
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
                         <title>Cat Coding</title>
-                        <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}';style-src vscode-resource: 'unsafe-inline' http: https: data:;">
+                        <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}' ${wv.cspSource}; style-src ${wv.cspSource} 'unsafe-inline' http: https: data:;">
 
                         <link rel="stylesheet" href="${mainstyleUri}"  nonce="${nonce}"  type="text/css" />
                         <link rel="stylesheet" href="${ACStyleUri}"  nonce="${nonce}"  type="text/css" />
@@ -190,7 +178,7 @@ export class WebViews{
         }
     }
 
-    public async GetWebViewContentTeamwork(taskItem: number, force: boolean = false)  {
+    public async GetWebViewContentTeamwork(taskItem: number, webview: vscode.Webview, force: boolean = false)  {
         var config = vscode.workspace.getConfiguration('twp');
         var root = config.get("APIRoot");
 
@@ -199,17 +187,12 @@ export class WebViews{
         var todo = await this.API.getTodoItem(this._context, taskItem);
 
         if(todo){
+            const wv = webviewResources(webview);
             const nonce = this.getNonce();
 
-            const scriptPathOnDisk = vscode.Uri.file(
-                path.join(this._extensionPath, 'media/js', 'mainTeamwork.js')
-            );
-            // And the uri we use to load this script in the webview
-            const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+            const scriptUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'mainTeamwork.js')));
             
-            // jquery
-            const jqueryPath = vscode.Uri.file(	path.join(this._extensionPath, 'media/js', 'jquery.min.js'));
-            const jqueryUri = jqueryPath.with({ scheme: 'vscode-resource' });
+            const jqueryUri = wv.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, 'media/js', 'jquery.min.js')));
     
     
             return `<!DOCTYPE html>
@@ -218,7 +201,7 @@ export class WebViews{
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
                         <title>Cat Coding</title>
-                        <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}';style-src vscode-resource: 'unsafe-inline' http: https: data:;">
+                        <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-${nonce}' ${wv.cspSource}; style-src ${wv.cspSource} 'unsafe-inline' http: https: data:;">
                         <script nonce="${nonce}" src="${jqueryUri}"></script>
                         <script nonce="${nonce}" src="${scriptUri}"></script>
                         <script type="text/javascript" nonce="${nonce}">

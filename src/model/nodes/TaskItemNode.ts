@@ -72,7 +72,8 @@ export class TaskItemNode implements INode {
                         this,
                         "taskItem",
                         this.provider,
-                        this.twp));
+                        this.twp,
+                        element.subTasks));
                 }
                 return nodeList;
             }
