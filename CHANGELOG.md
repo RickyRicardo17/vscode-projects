@@ -1,4 +1,8 @@
 # Change Log
+## 1.0.22
+ - Fixed task preview not working in recent VS Code or when using Remote - SSH.
+ - Fixed subtasks not showing in the task tree.
+ - Fixed wrong task preview after logging time with an invalid number of minutes (greater than 59).
 ## 1.0.21
  - Fixed build script issue with auth credentials.
 ## 1.0.20

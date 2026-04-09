@@ -2,6 +2,8 @@
 
 The creators and maintainers of this project are doing it with enthusiasm and happiness, in odd moments between other projects and possibly even in their spare time. Please be kind to them, and understand that although they hope to get the time & energy to fix your bug :crossed_fingers:, this is not an officially supported product or service, and therefore doing so is not a part of their day jobs.
 
+**This fork** includes bug fixes on top of the original extension. What changed is summarized in [CHANGELOG.md](CHANGELOG.md) under **1.0.22** (and the entries below it for earlier releases).
+
 ## Features
 The Teamwork Projects and Visual Studio Code Editor extension allows you to manage your projects and tasks directly from within Visual Studio Code so you can get more work done from one place. 
 
