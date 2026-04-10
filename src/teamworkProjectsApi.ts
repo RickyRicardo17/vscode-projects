@@ -211,11 +211,12 @@ export class TeamworkProjectsApi{
         var item = context.globalState.get("twp.data.task." + id,"");
         var lastUpdated = context.globalState.get("twp.data.task." + id + ".lastUpdated", new Date());
         var todo;
-        if(item && !force){
-            if(Utilities.DateCompare(lastUpdated,30)){
-                todo = item;
-            }
-        }else{
+
+        const useCache = Boolean(item) && !force && Utilities.DateCompare(lastUpdated, 30);
+
+        if (useCache) {
+            todo = item;
+        } else {
             const url = this.root + '/tasks/' + id + '.json';
 
             let json = await this.axios({
@@ -226,15 +227,35 @@ export class TeamworkProjectsApi{
                 console.log(error);
             });
 
-            todo = json.data["todo-item"];
+            if (!json || !json.data) {
+                vscode.window.showErrorMessage("Teamwork: could not load task " + id + ". Check your connection and API access.");
+                return undefined;
+            }
+
+            todo = json.data["todo-item"] ?? json.data["todoItem"];
+            if (!todo || typeof todo !== "object") {
+                vscode.window.showErrorMessage("Teamwork: task " + id + " was not found or the API returned an unexpected shape.");
+                return undefined;
+            }
             await context.globalState.update("twp.data.task." + id + ".lastUpdated", Date.now());
             await context.globalState.update("twp.data.task." + id, todo);
         }
 
+        if (!todo || typeof todo !== "object") {
+            vscode.window.showErrorMessage("Teamwork: no cached task data for " + id + ". Open the task again to refresh.");
+            return undefined;
+        }
+
         var dateFormat = require('dateformat');
-        todo['created-on'] = dateFormat(Date.parse(todo['created-on']), "dd-mm-yyyy");
-        todo['description'] = todo['description'].replace('\'','´');
-        todo['content'] = todo['content'].replace('\'','´');
+        if (todo["created-on"]) {
+            todo["created-on"] = dateFormat(Date.parse(todo["created-on"]), "dd-mm-yyyy");
+        }
+        if (typeof todo["description"] === "string") {
+            todo["description"] = todo["description"].replace('\'','´');
+        }
+        if (typeof todo["content"] === "string") {
+            todo["content"] = todo["content"].replace('\'','´');
+        }
 
         // If task has comments -> Load them
         if(todo["comments-count"] > 0){
@@ -253,14 +274,16 @@ export class TeamworkProjectsApi{
             var TurndownService = require('turndown');
             var turndownService = new TurndownService();
 
-            comments.data.comments.forEach(element => {
-                var newBody = turndownService.turndown(element['html-body']);
-                newBody = newBody.replace('\'','´');
-                element.body = newBody;
-                element["datewritten"] = dateFormat(Date.parse(element.datetime), "dd-mm-yyyy hh:MM");
-            });
+            if (comments && comments.data && comments.data.comments) {
+                comments.data.comments.forEach(element => {
+                    var newBody = turndownService.turndown(element['html-body']);
+                    newBody = newBody.replace('\'','´');
+                    element.body = newBody;
+                    element["datewritten"] = dateFormat(Date.parse(element.datetime), "dd-mm-yyyy hh:MM");
+                });
 
-            todo["comments"] = comments.data.comments;
+                todo["comments"] = comments.data.comments;
+            }
         }
      
         if(todo["attachments-count"] > 0){
@@ -276,7 +299,9 @@ export class TeamworkProjectsApi{
                 console.log(error);
             });
     
-            todo["attachments"] = comments.data.files;
+            if (comments && comments.data && comments.data.files) {
+                todo["attachments"] = comments.data.files;
+            }
         }
 
         var config = vscode.workspace.getConfiguration('twp');
@@ -296,19 +321,21 @@ export class TeamworkProjectsApi{
                 console.log(error);
             });
     
-            let totalHours = 0;
-            let totalMinutes = 0;
-            let estimated = await this.timeConvert(todo["estimated-minutes"]);
-            todo["estimated"] = estimated;
-            
-            timeEntries.data.timeEntries.forEach(element => {
-                element["date"] = dateFormat(Date.parse(element["date"]), "dd-mm-yyyy hh:MM");
-                totalHours += element["hours"];
-                totalMinutes += element["minutes"];
-            });
-            let total = await this.timeConvert(totalHours * 60 + totalMinutes);
-            todo["total"] = total;
-            todo["timeEntries"] = timeEntries.data.timeEntries;
+            if (timeEntries && timeEntries.data && timeEntries.data.timeEntries) {
+                let totalHours = 0;
+                let totalMinutes = 0;
+                let estimated = await this.timeConvert(todo["estimated-minutes"]);
+                todo["estimated"] = estimated;
+                
+                timeEntries.data.timeEntries.forEach(element => {
+                    element["date"] = dateFormat(Date.parse(element["date"]), "dd-mm-yyyy hh:MM");
+                    totalHours += element["hours"];
+                    totalMinutes += element["minutes"];
+                });
+                let total = await this.timeConvert(totalHours * 60 + totalMinutes);
+                todo["total"] = total;
+                todo["timeEntries"] = timeEntries.data.timeEntries;
+            }
 
         }
 

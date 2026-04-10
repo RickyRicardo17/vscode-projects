@@ -247,25 +247,27 @@ export class TeamworkProjects{
                     var id = newTask["data"]["taskIds"];
                     var taskDetails = await this.API.getTodoItem(this._context,parseInt(id),true);
 
-                    var langConfig = Utilities.GetActiveLanguageConfig();
-                    var commentWrapper = "-";
-                    if(!isNullOrUndefined(langConfig)){
-                        //Task: Need to find a workaround for files without a comment symbol configured in VSCode
-                        //Link: https://digitalcrew.teamwork.com//tasks/14804255
-                        //Assigned To: Tim Cadenbach
-                        commentWrapper = isNullOrUndefined(langConfig.comments.lineComment) ? "-" : langConfig.comments.lineComment;
+                    if(!isNullOrUndefined(taskDetails)){
+                        var langConfig = Utilities.GetActiveLanguageConfig();
+                        var commentWrapper = "-";
+                        if(!isNullOrUndefined(langConfig)){
+                            //Task: Need to find a workaround for files without a comment symbol configured in VSCode
+                            //Link: https://digitalcrew.teamwork.com//tasks/14804255
+                            //Assigned To: Tim Cadenbach
+                            commentWrapper = isNullOrUndefined(langConfig.comments.lineComment) ? "-" : langConfig.comments.lineComment;
+                        }
+                        var content = taskDetails.content;
+                        var responsible = taskDetails["responsible-party-names"];
+                        if(isNullOrUndefined(responsible)) { responsible = "anyone"; }
+                        editor.edit(edit => {
+                            edit.setEndOfLine(vscode.EndOfLine.CRLF);
+                            edit.insert(new vscode.Position(line, cursor), commentWrapper + "Task: " + content + "\r\n");
+                            edit.insert(new vscode.Position(line, cursor), commentWrapper + "Ref: " + reference + "\r\n");
+                            edit.insert(new vscode.Position(line, cursor), commentWrapper + "Link: " + root + "/tasks/" + id + "\r\n");
+                            edit.insert(new vscode.Position(line, cursor), commentWrapper + "Assigned To: " + responsible + "\r\n"+ "\r\n");
+                        });
                     }
-                    var content = taskDetails.content;
-                    var responsible = taskDetails["responsible-party-names"];
-                    if(isNullOrUndefined(responsible)) { responsible = "anyone"; }
-                    editor.edit(edit => {
-                        edit.setEndOfLine(vscode.EndOfLine.CRLF);
-                        edit.insert(new vscode.Position(line, cursor), commentWrapper + "Task: " + content + "\r\n");
-                        edit.insert(new vscode.Position(line, cursor), commentWrapper + "Ref: " + reference + "\r\n");
-                        edit.insert(new vscode.Position(line, cursor), commentWrapper + "Link: " + root + "/tasks/" + id + "\r\n");
-                        edit.insert(new vscode.Position(line, cursor), commentWrapper + "Assigned To: " + responsible + "\r\n"+ "\r\n");
-                    });
-                    
+
                     vscode.window.showInformationMessage("Task was added");
                 }
             }
